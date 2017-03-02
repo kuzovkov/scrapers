@@ -17,13 +17,22 @@ class Scraper:
     def __init__(self, storage=None):
         self.storage = storage
 
-    def run(self):
+    def run(self, clear_old=False):
+        if clear_old:
+            print 'Deleting old data...'
+            self.deleteData()
         next_url = self.processingPage(self.url)
         self.saveData(self.dataBuffer)
 
         while next_url != "#":
             next_url = self.processingPage(next_url)
             self.saveData(self.dataBuffer)
+
+    def test(self):
+        url = 'http://reseaualliance.fr/offre/7743'
+        data = self.parsePage(url)
+        pprint(data)
+        print time.ctime(data['publishDate'])
 
     def processingPage(self, url):
         self.dataBuffer = []
@@ -69,7 +78,7 @@ class Scraper:
         return category
 
     def getPublishData(self, soup):
-        months = {'Janvier':1, 'Fevrier':2,	'Mars':3, 'Avril':4, 'Mai':5, 'Juin':6,	'Juillet':7, 'Aout':8, 'Septembre':9, 'Octobre':10,	'Novembre':11, 'Decembre':12}
+        months = {u'Janvier':1, u'Février':2, u'Mars':3, u'Avril':4, u'Mai':5, u'Juin':6, u'Juillet':7, u'Aout':8, u'Septembre':9, u'Octobre':10,	u'Novembre':11, u'Décembre':12}
         try:
             div = soup.find('div', class_="col-xs-12 col-sm-4 text-muted text-right")
             date_string = div.small.b.text
@@ -102,3 +111,10 @@ class Scraper:
             scraperwiki.sqlite.save(unique_keys=['title', 'category', 'description'], data=data, table_name="data")
         else:
             self.storage.save(unique_keys={'title':1, 'category':2, 'description':5}, data=data)
+
+
+    def deleteData(self):
+        if self.storage is None:
+            scraperwiki.sqlite.execute("DELETE FROM data")
+        else:
+            self.storage.delete(table="data")

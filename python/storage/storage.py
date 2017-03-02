@@ -45,4 +45,13 @@ class Storage:
         res = self.dbase.insert('data', data_to_write)
         return res
 
+    '''
+    Удаление данных из таблицы
+    @param table имя таблицы
+    '''
+    def delete(self, table=None):
+        if table is None:
+            table = 'data'
+        self.dbase.delete(table)
+
 
