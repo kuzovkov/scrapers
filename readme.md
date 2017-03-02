@@ -18,7 +18,7 @@ II. Использование
     Вариант на Python:
 
     cd scrapers/python
-    chmod a+e run
+    chmod a+x run
     ./run -d <сайт-донор> [-t --test] [-c --clear-old]
 
     Описание опций:
