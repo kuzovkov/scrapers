@@ -4,6 +4,7 @@ import getopt
 import sys
 import os
 import storage.storage as mod_storage
+import logger.logger as logger
 
 use_storage = False
 storage_type = 'SQLite'
@@ -56,7 +57,8 @@ else:
     os.environ["SCRAPERWIKI_DATABASE_NAME"] = "sqlite:///db/" + donor + ".sqlite"
 
 mod_scraper = __import__('donors.' + donor + '.scraper', globals(), locals(), ['Scraper'], -1)
-scraper = mod_scraper.Scraper(storage)
+logger = logger.Logger('log/' + donor + '.log')
+scraper = mod_scraper.Scraper(logger, storage)
 if test_mode:
     scraper.test()
 else:

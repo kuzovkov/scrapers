@@ -5,62 +5,51 @@ from bs4 import BeautifulSoup
 import time
 from pprint import pprint
 
-#parse http://reseaualliance.fr/
+#parse https://pwcrecruit.pwc.lu
 
 class Scraper:
 
     storage = None
     logger = None
-    url = 'http://reseaualliance.fr/offres/1'
+    url = 'https://pwcrecruit.pwc.lu/eRecrutementJobs/view/home.xhtml'
     links = []
     dataBuffer = []
 
     def __init__(self, logger, storage=None):
-        self.storage = storage
         self.logger = logger
+        self.storage = storage
 
     def run(self, clear_old=False):
         if clear_old:
             print 'Deleting old data...'
             self.logger.info('Deleting old data...')
             self.deleteData()
-        next_url = self.processingPage(self.url)
+        self.processingPage(self.url)
         self.saveData(self.dataBuffer)
 
-        while next_url != "#":
-            next_url = self.processingPage(next_url)
-            self.saveData(self.dataBuffer)
-
     def test(self):
-        url = 'http://reseaualliance.fr/offre/7743'
+        url = 'https://pwcrecruit.pwc.lu/eRecrutementJobs/view/job.xhtml?jobId=1652'
         data = self.parsePage(url)
         pprint(data)
         print time.ctime(data['publishDate'])
 
     def processingPage(self, url):
         self.dataBuffer = []
+        url = 'https://pwcrecruit.pwc.lu/eRecrutementJobs/view/home.xhtml'
         try:
             html = scraperwiki.scrape(url)
             soup = BeautifulSoup(html, "html.parser")
-            print 'Processing page %s ...' % url
-            self.logger.info('Processing page %s ...' % url)
-            for a in soup.find_all('a', class_="row list-group-item"):
-                link = a['href']
-                #print link
-                self.links.append(link)
+            for li in soup.find_all('li', attrs={"data-id": True}):
+                data_id = li['data-id']
+                link = 'https://pwcrecruit.pwc.lu/eRecrutementJobs/view/job.xhtml?jobId=' + data_id
                 self.dataBuffer.append(self.parsePage(link))
-            li_next = soup.find('li', class_="next")
-            next_url = li_next.a['href']
-            return next_url
         except Exception, ex:
             print ex
             self.logger.error(ex)
-            exit(1)
-
 
     def parsePage(self, url):
         print '...Parsing link: %s ...' % url
-        self.logger.info('...Parsing link: %s ...' % url)
+        self.logger.info( '...Parsing link: %s ...' % url)
         data = {}
         try:
             html = scraperwiki.scrape(url)
@@ -75,35 +64,36 @@ class Scraper:
         data['publishDate'] = self.getPublishData(soup)
         data['contructType'] = self.getContractType(soup)
         data['description'] = self.getDescription(soup)
+        data['tasks'] = self.getTasks(soup)
+        data['requirements'] = self.getRequirements(soup)
         data['utime'] = int(time.time())
         return data
 
     def getTitle(self, soup):
         try:
-            title = soup.find('h2', class_="job-situation").text.strip()
+            title = soup.find('h2', class_="title").text.strip()
         except Exception, ex:
-            title = None
             self.logger.error(ex)
+            title = None
         return title
 
     def getCategory(self, soup):
         try:
-            category = soup.find('span', class_="job-activity").text
+            category = soup.find('div', class_='etiquette').text.strip()
         except Exception, ex:
             self.logger.error(ex)
             category = None
         return category
 
     def getPublishData(self, soup):
-        months = {u'Janvier':1, u'Février':2, u'Mars':3, u'Avril':4, u'Mai':5, u'Juin':6, u'Juillet':7, u'Aout':8, u'Septembre':9, u'Octobre':10,	u'Novembre':11, u'Décembre':12}
+        months = {u'Jan':1, u'Feb':2, u'Mar':3, u'Apr':4, u'May':5, u'Jun':6, u'Jul':7, u'Aug':8, u'Sep':9, u'Oct':10,	u'Nov':11, u'Dec':12}
         try:
-            div = soup.find('div', class_="col-xs-12 col-sm-4 text-muted text-right")
-            date_string = div.small.b.text
+            date_string = soup.find('h5', class_='desktop-only').span.text.strip()
             day, month, year = date_string.split(' ')
             day = int(day)
             month = months.get(month, 1)
             year = int(year)
-            date = int(time.mktime((year, month, day, 0, 0, 0, 0 ,0, 0)))
+            date = int(time.mktime((year, month, day, 0, 0, 0, 0, 0, 0)))
             return date
         except Exception, ex:
             self.logger.error(ex)
@@ -111,18 +101,40 @@ class Scraper:
 
     def getContractType(self, soup):
         try:
-            contruct_type = soup.find('h3', class_="job-contract-type").span.text
+            ul = soup.find('ul', class_="share")
+            h5 = ul.findNext('h5')
+            h4 = h5.findNext('h4')
+            contruct_type = h4.text
         except Exception, ex:
             contruct_type = None
+            self.logger.error(ex)
         return contruct_type
 
     def getDescription(self, soup):
         try:
-            desc = soup.find('div', class_="job-details").text
+            desc = soup.find('p', class_="boilerplate").text.strip()
+        except Exception, ex:
+            desc = None
+            self.logger.error(ex)
+        return desc
+
+    def getTasks(self, soup):
+        try:
+            tasks = soup.find('div', class_="mission").text.strip()
         except Exception, ex:
             self.logger.error(ex)
-            desc = None
-        return desc
+            tasks = None
+        return tasks
+
+    def getRequirements(self, soup):
+        try:
+            section = soup.find('section', class_="job-profile")
+            ul = section.findNext('ul')
+            req = ul.text.strip()
+        except Exception, ex:
+            self.logger.error(ex)
+            req = None
+        return req
 
 
     def saveData(self, data):
@@ -134,7 +146,6 @@ class Scraper:
         except Exception, ex:
             print ex
             self.logger.error(ex)
-
 
 
     def deleteData(self):
